@@ -17,12 +17,12 @@ _log ()
 
 _curl ()
 {
-    curl -v ${host_name} -d "$MESSAGE"
+    curl ${host_name} -d "$MESSAGE" >&2
 }
 
 _curl_post ()
 {
-    curl -v -XPOST ${host_name} -d "$MESSAGE"
+    curl -XPOST ${host_name} -d "$MESSAGE" >&2
 }
 
 _info ()
@@ -186,6 +186,29 @@ test -z "${sleep_duration}" && sleep_duration=${default_sleep_duration}
 # Load profile
 . "${profile_dir}/${profile_name}"/*.sh 2>/dev/null
 
+if [ -n "${ls_host_name}" ]
+then
+    (curl ${ls_host_name} 2>&1) >/dev/null
+    if [ $? = 0 ]
+    then
+        _info "Info: Curl correctly connects on logstash's URL."
+    else
+        _info "ERROR: Curl can't connect on logstash's URL."
+        exit 1
+    fi
+fi
+if [ -n "${es_host_name}" ]
+then
+    (curl ${es_host_name} 2>&1) >/dev/null
+    if [ $? = 0 ]
+    then
+        _info "Info: Curl correctly connects on elasticsearch's URL."
+    else
+        _info "ERROR: Curl can't connect on elasticsearch's URL."
+        exit 1
+    fi
+fi
+
 _info "Info: Profile is ${profile_name}."
 _info "Info: ${max_occurs} raw logs will be fired each ${sleep_duration} seconds/"
 expected_duration=`awk "BEGIN{print ${max_occurs} * (${sleep_duration} + 0.05) - ${sleep_duration}}"`
@@ -215,7 +238,6 @@ do
     if [ -n "${es_host_name}" ]
     then
         host_name=${es_host_name}
-        echo "sens to ${es_host_name} and ${host_name}"
         _curl_post
     fi
     test ${occur} -eq ${max_occurs} || sleep ${sleep_duration} & 
