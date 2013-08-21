@@ -17,12 +17,12 @@ _log ()
 
 _curl ()
 {
-	curl -v ${host_name} -d "$MESSAGE"
+    curl -v ${host_name} -d "$MESSAGE"
 }
 
 _curl_post ()
 {
-	curl -v -XPOST ${host_name} -d "$MESSAGE"
+    curl -v -XPOST ${host_name} -d "$MESSAGE"
 }
 
 _info ()
@@ -169,7 +169,16 @@ then
     _info "Warning: 'r' parameter is set without a 'b' parameter. It will be ignored."
     randomize_batch_size=
 fi
-
+if [ -n "${ls_host_name}" -o -n "${es_host_name}" ]
+then
+    which curl 2>&1 1>/dev/null
+    if [ $? != 0 ]
+    then
+        _info "Error: Curl is not installed and is mandatory if using parameter 'e' or 'l'."
+        exit 1
+    fi
+fi
+    
 test -z "${profile_name}" && exit 1
 test -z "${max_occurs}" && max_occurs=${default_max_message}
 test -z "${sleep_duration}" && sleep_duration=${default_sleep_duration}
@@ -198,17 +207,17 @@ do
     _on_log
     _loadresources
     _log
-	if [ -n  "${ls_host_name}" ]
-	then
-		host_name=${ls_host_name}
-		_curl
-	fi
-	if [ -n  "${es_host_name}" ]
-	then
-		host_name=${es_host_name}
-		echo "sens to ${es_host_name} and ${host_name}"
-		_curl_post
-	fi
+    if [ -n "${ls_host_name}" ]
+    then
+        host_name=${ls_host_name}
+        _curl
+    fi
+    if [ -n "${es_host_name}" ]
+    then
+        host_name=${es_host_name}
+        echo "sens to ${es_host_name} and ${host_name}"
+        _curl_post
+    fi
     test ${occur} -eq ${max_occurs} || sleep ${sleep_duration} & 
     if [ -n "${current_batch_size}" ]
     then
