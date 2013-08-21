@@ -2,3 +2,9 @@ logs
 nohup.out
 *.tar.gz
 
+/.project
+genlog
+to_curl
+to_file
+*.log
+
