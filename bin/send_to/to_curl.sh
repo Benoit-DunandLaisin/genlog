@@ -54,7 +54,7 @@ _on_stop ()
 _on_log ()
 {   # This function is called for each raw log.
     # Given parameters are a raw log
-    curl -X${request_type} ${url} -d "$*"
+    curl -sS -X${request_type} ${url} -d "$*" 1>/dev/null
     return 0
 }
 
