@@ -92,3 +92,10 @@ A module that send log via curl (for instance to elasticsearch).
 ### Invocation example
     genlog | to_file -f example.log | to_curl -X POST -u http://elasticsearch:9200/myindex/type1
 
+# Development
+Please install local hook for pre-commit by running:
+
+    ln -s ../../.utils/pre-commit.sh ./.git/hooks/pre-commit
+
+Before a commit, please run ./.utils/check.sh
+
