@@ -15,16 +15,6 @@ _log ()
     echo "$MESSAGE"
 }
 
-_curl ()
-{
-    curl ${host_name} -d "$MESSAGE" >&2
-}
-
-_curl_post ()
-{
-    curl -XPOST ${host_name} -d "$MESSAGE" >&2
-}
-
 _info ()
 {
     printf "$*\n" >&2
@@ -84,9 +74,9 @@ if [ -L ${TARGET} ]
 then
     LINK=`ls -l $0`
     TARGET=`echo ${LINK} |  sed 's/^.* -> //'`
-    cd `dirname $0` && cd `dirname ${TARGET}`
+    cd `dirname $0` && cd `dirname ${TARGET}` && cd ..
 else
-    cd `dirname $0`
+    cd `dirname $0` && cd ..
 fi
 curdir=`pwd`
 
@@ -98,7 +88,7 @@ default_profile_name="default"
 randomize_batch_size=
 test -d "${log_dir}" || mkdir -p "${log_dir}"
 
-while getopts hrm:t:b:p:e:l: flag; do
+while getopts hrm:t:b:p: flag; do
     case ${flag} in
         h)
             _info "usage: genlog.sh [-h] [-m <int_value>] [-t <decimal_value>] [-b <int_value> [-r]] [-p <profile>])"
@@ -107,8 +97,6 @@ while getopts hrm:t:b:p:e:l: flag; do
             _info "  -b: batch size (default is none). Perform a special action each time the batch size is reached."
             _info "  -r: Randomize batch size ('b' is mandatory and its value will be the maximum random value)."
             _info "  -p: Profile name. Must match a directory name under resources (Default is ${default_profile_name})."
-            _info "  -e: Elasticsearch Host where the log are be sended with the curl command line with -XPOST argument."
-            _info "  -l: Logstash host where the log are be sended with the curl command to the LogsStash server."
             exit 0
             ;;
         m)  max_occurs=$OPTARG;;
@@ -116,8 +104,6 @@ while getopts hrm:t:b:p:e:l: flag; do
         b)  batch_size=$OPTARG;;
         r)  randomize_batch_size=y;;
         p)  profile_name=$OPTARG;;
-        e)  es_host_name=$OPTARG;;
-        l)  ls_host_name=$OPTARG;;
     esac
 done
 
@@ -169,45 +155,13 @@ then
     _info "Warning: 'r' parameter is set without a 'b' parameter. It will be ignored."
     randomize_batch_size=
 fi
-if [ -n "${ls_host_name}" -o -n "${es_host_name}" ]
-then
-    which curl 2>&1 1>/dev/null
-    if [ $? != 0 ]
-    then
-        _info "Error: Curl is not installed and is mandatory if using parameter 'e' or 'l'."
-        exit 1
-    fi
-fi
-    
+
 test -z "${profile_name}" && exit 1
 test -z "${max_occurs}" && max_occurs=${default_max_message}
 test -z "${sleep_duration}" && sleep_duration=${default_sleep_duration}
 
 # Load profile
 . "${profile_dir}/${profile_name}"/*.sh 2>/dev/null
-
-if [ -n "${ls_host_name}" ]
-then
-    (curl ${ls_host_name} 2>&1) >/dev/null
-    if [ $? = 0 ]
-    then
-        _info "Info: Curl correctly connects on logstash's URL."
-    else
-        _info "ERROR: Curl can't connect on logstash's URL."
-        exit 1
-    fi
-fi
-if [ -n "${es_host_name}" ]
-then
-    (curl ${es_host_name} 2>&1) >/dev/null
-    if [ $? = 0 ]
-    then
-        _info "Info: Curl correctly connects on elasticsearch's URL."
-    else
-        _info "ERROR: Curl can't connect on elasticsearch's URL."
-        exit 1
-    fi
-fi
 
 _info "Info: Profile is ${profile_name}."
 _info "Info: ${max_occurs} raw logs will be fired each ${sleep_duration} seconds/"
@@ -230,17 +184,7 @@ do
     _on_log
     _loadresources
     _log
-    if [ -n "${ls_host_name}" ]
-    then
-        host_name=${ls_host_name}
-        _curl
-    fi
-    if [ -n "${es_host_name}" ]
-    then
-        host_name=${es_host_name}
-        _curl_post
-    fi
-    test ${occur} -eq ${max_occurs} || sleep ${sleep_duration} & 
+    test ${occur} -eq ${max_occurs} || sleep ${sleep_duration} &
     if [ -n "${current_batch_size}" ]
     then
         if [ ${batch_elt} -ge ${current_batch_size} ]
