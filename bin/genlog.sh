@@ -164,12 +164,13 @@ test -z "${sleep_duration}" && sleep_duration=${default_sleep_duration}
 . "${profile_dir}/${profile_name}"/*.sh 2>/dev/null
 
 _info "Info: Profile is ${profile_name}."
-_info "Info: ${max_occurs} raw logs will be fired each ${sleep_duration} seconds/"
-expected_duration=`awk "BEGIN{print ${max_occurs} * (${sleep_duration} + 0.05) - ${sleep_duration}}"`
+_info "Info: ${max_occurs} raw logs will be fired each ${sleep_duration} seconds."
+expected_duration=`awk "BEGIN{print (${max_occurs} - 1) * (${sleep_duration} + 0.01)}"`
 _info "Info: Expected duration is ${expected_duration} seconds."
 
-start_time=`date -u +%s`
-(
+TIMEFORMAT='%3R'
+exec 3>&1 4>&2
+{ time (
 _event "START genlog"
 
 occur=0
@@ -177,34 +178,47 @@ batch_elt=0
 _on_init
 while [ ${occur} -lt ${max_occurs} ]
 do
-    batch_elt=`expr ${batch_elt} + 1`
+
     occur=`expr ${occur} + 1`
-    wait
-    TIMESTAMP=`timestamp`
-    _on_log
-    _loadresources
-    _log
-    test ${occur} -eq ${max_occurs} || sleep ${sleep_duration} &
-    if [ -n "${current_batch_size}" ]
+    wait $!
+    if [ $? = 0 ]
     then
-        if [ ${batch_elt} -ge ${current_batch_size} ]
-        then
-            _on_batch_full
-            batch_elt=0
-            test -n "${randomize_batch_size}" && current_batch_size=`_randomize ${batch_size}`
-        fi
+        batch_elt=`expr ${batch_elt} + 1`
+    else
+        batch_elt=1
     fi
+    wait
+    test ${occur} -eq ${max_occurs} || sleep ${sleep_duration} &
+    (
+        # This subshell have to return 1 if _on_batch_full is fired
+        TIMESTAMP=`timestamp`
+        _on_log
+        _loadresources
+        _log
+        if [ -n "${current_batch_size}" ]
+        then
+            if [ ${batch_elt} -ge ${current_batch_size} ]
+            then
+                _on_batch_full
+                test -n "${randomize_batch_size}" && current_batch_size=`_randomize ${batch_size}`
+                exit 1
+            fi
+        fi
+        exit 0
+    ) &
 done
-if [ -n "${current_batch_size}" -a ${batch_elt} -gt 0 ]
+wait $!
+if [ -n "${current_batch_size}" -a $? = 0 ]
 then
+    wait
     _on_batch_full
 fi
+wait
 _on_stop
 _event "STOP genlog"
-) | tee "${log_dir}"/log.txt
-
-end_time=`date -u +%s`
-reel_duration=`expr ${end_time} - ${start_time}`
+) 2>&4 | tee "${log_dir}"/log.txt 1>&3 2>&4; } 2> /tmp/genlog_$$.time.txt
+exec 3>&- 4>&-
+reel_duration=`cat /tmp/genlog_$$.time.txt`
 delta=`awk "BEGIN{print ${reel_duration} - ${expected_duration}}"`
 _info "Info: Finish job in ${reel_duration} seconds. Delta with expected duration is ${delta} seconds."
 rm -f /tmp/genlog_$$.*.txt
