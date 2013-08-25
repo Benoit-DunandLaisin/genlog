@@ -7,9 +7,9 @@ _on_init ()
     while getopts hX:u: flag; do
         case ${flag} in
             h)
-                _info "usage: to_curl [-h] [-x PUT|POST|GET] -u <url>"
-                _info "  -X: request type (default: GET)."
-                _info "  -u: target URL."
+                _print "usage: to_curl [-h] [-X PUT|POST|GET] -u <url>"
+                _print "  -X: request type (default: GET)."
+                _print "  -u: target URL."
                 exit 0
                 ;;
             X)  request_type=$OPTARG;;
@@ -20,27 +20,27 @@ _on_init ()
     which curl 2>&1 1>/dev/null
     if [ $? != 0 ]
     then
-        _info "Error: Curl is not installed and is mandatory."
+        _error "Curl is not installed and is mandatory."
         return 1
     fi
 
     if [ "${request_type}" != "PUT" -a "${request_type}" != "GET" -a "${request_type}" != "POST" ]
     then
-        _info "Info: Request type set to GET."
+        _info "Request type set to GET."
         request_type="GET"
     fi
     if [ -z "${url}" ]
     then
-        _info "ERROR: An URL is mandatory."
+        _error "An URL is mandatory."
         return 1
     fi
 
     (curl ${url} 2>&1) >/dev/null
     if [ $? = 0 ]
     then
-        _info "Info: Curl correctly connects on URL."
+        _info "Curl correctly connects to ${url}."
     else
-        _info "ERROR: Curl can't connect on URL."
+        _error "Curl can't connect to ${url}."
         return 1
     fi
 
@@ -54,7 +54,10 @@ _on_stop ()
 _on_log ()
 {   # This function is called for each raw log.
     # Given parameters are a raw log
-    curl -X${request_type} ${url} -d "$*"
+    _fire_message "$*"
+    curl -sS -X${request_type} ${url} -d "$*" \
+    -w "http_code=%{http_code} ; time_connect=%{time_connect} ; time_pretransfer=%{time_pretransfer} ; time_total=%{time_total}\n"\
+    -o /dev/null >> ${log_dir}/${module_log_name}.stats
     return 0
 }
 
