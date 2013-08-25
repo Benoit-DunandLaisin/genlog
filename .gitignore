@@ -6,5 +6,7 @@ nohup.out
 genlog
 to_curl
 to_file
+bin/sendto
 *.log
+*_*.log*
 

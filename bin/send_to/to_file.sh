@@ -7,8 +7,8 @@ _on_init ()
     while getopts hf: flag; do
         case ${flag} in
             h)
-                _info "usage: to_file [-h] -f <file path>"
-                _info "  -f: file path where to write raw log."
+                _print "usage: to_file [-h] -f <file path>"
+                _print "  -f: file path where to write raw log."
                 exit 0
                 ;;
             f)  filepath=$OPTARG;;
@@ -17,14 +17,14 @@ _on_init ()
 
     if [ -z "${filepath}" ]
     then
-        _info "ERROR: A file path is mandatory."
+        _error "A file path is mandatory."
         return 1
     else
         if [ "`echo "${filepath}" | cut -c1`" != "/" ]
         then
             filepath=${initdir}/${filepath}
         fi
-        _info "Info: Append to ${filepath}"
+        _info "Start appending to ${filepath}"
     fi
 
     return 0
@@ -32,12 +32,13 @@ _on_init ()
 _on_stop ()
 {   # This function is called when all raw logs are processed
     # No parameter
+    _info "End"
     return 0
 }
 _on_log ()
 {   # This function is called for each raw log.
     # Given parameters are a raw log
-    echo "$*" >> ${filepath}
+    _fire_message "$*" | tee -a ${filepath}
     return 0
 }
 

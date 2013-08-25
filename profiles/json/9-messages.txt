@@ -1,0 +1,1 @@
+MESSAGE="{\"@timestamp\":\"${TIMESTAMP}\",\"@uid\":\"${USER_ID}\",\"@code\":\"${CODE}\",\"@value\":\"${VALUE}\"}"
